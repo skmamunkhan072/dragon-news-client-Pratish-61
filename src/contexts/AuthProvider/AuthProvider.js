@@ -1,48 +1,84 @@
-import React, { createContext, useEffect, useState } from 'react';
-import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from 'firebase/auth'
-import app from '../../firebase/firebase.config';
+import React, { createContext, useEffect, useState } from "react";
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  onAuthStateChanged,
+  sendEmailVerification,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import app from "../../firebase/firebase.config";
 
 export const AuthContext = createContext();
 const auth = getAuth(app);
 
 const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loding, setLoding] = useState(true);
 
-    const providerLogin = (provider) => {
-        return signInWithPopup(auth, provider);
-    }
+  // Create User
+  const handelUserCreate = (email, password) => {
+    setLoding(false);
+    return createUserWithEmailAndPassword(auth, email, password);
+  };
+  // user name and profile update
+  const userProfileAndNameUpdate = (profile) => {
+    return updateProfile(auth.currentUser, profile);
+  };
+  // user email verify function
+  const handelUserVeryfy = () => {
+    return sendEmailVerification(auth.currentUser);
+  };
 
-    const createUser = (email, password) => {
-        return createUserWithEmailAndPassword(auth, email, password)
-    }
+  // Login
+  const handelLoginGmailPassword = (email, password) => {
+    setLoding(false);
+    return signInWithEmailAndPassword(auth, email, password);
+  };
+  // login google
+  const providerLogin = (provider) => {
+    setLoding(false);
+    return signInWithPopup(auth, provider);
+  };
 
-    const signIn = (email, password) => {
-        return signInWithEmailAndPassword(auth, email, password);
-    }
+  // unSubscribe mount
+  useEffect(() => {
+    const unSubscribe = onAuthStateChanged(auth, (currentUser) => {
+      // console.log("current User", currentUser);
+      if (currentUser === null || currentUser.emailVerified) {
+        setUser(currentUser);
+      }
+      setLoding(false);
+    });
+    return () => {
+      unSubscribe();
+    };
+  }, []);
 
-    const logOut = () => {
-        return signOut(auth);
-    }
+  // sing out
+  const singOutAccount = () => {
+    setLoding(false);
+    signOut(auth);
+  };
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            console.log('inside auth state change', currentUser);
-            setUser(currentUser)
-        });
+  const authInfo = {
+    user,
+    setUser,
+    providerLogin,
+    singOutAccount,
+    handelUserCreate,
+    handelLoginGmailPassword,
+    loding,
+    setLoding,
+    userProfileAndNameUpdate,
+    handelUserVeryfy,
+  };
 
-        return () => {
-            unsubscribe();
-        }
-
-    }, [])
-
-    const authInfo = { user, providerLogin, logOut, createUser, signIn };
-
-    return (
-        <AuthContext.Provider value={authInfo}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider value={authInfo}>{children}</AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;
